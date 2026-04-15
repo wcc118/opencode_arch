@@ -23,7 +23,7 @@ git log --oneline -1
 Confirm HEAD SHA matches what `agent.md` documents. If they differ: reconcile agent.md before doing anything else.
 
 # Memory injection (learnings/opencode_arch)
-- `memory/summary.json`: invoke `memory-loader`, inject heuristics
+- `memory/summary.json`: invoke `memory-loader` skill, inject heuristics as system prompt preface
 
 ### 2. Check for BLOCKED
 Does agent.md show Phase: `BLOCKED`?
@@ -102,7 +102,10 @@ Release all context from the completed subtask. Re-read agent.md only before con
 
 After 3 subtasks: stop, present summary to human, wait for approval.
 
-- On BLOCKED/COMPLETE/HANDOFF: invoke `learning-aggregator`, append to `memory/bank.json`
+- On BLOCKED/COMPLETE/HANDOFF:
+  1. Identify most recent session log from `sessions/session_*.md`
+  2. Run `python memory/learning_aggregator.py --session <session_log>`
+  3. Commit memory changes with message: `chore(memory): archive session`
 
 ---
 

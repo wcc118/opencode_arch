@@ -1,1 +1,98 @@
-[]
+[
+  {
+    "t": "success",
+    "p": "Architecture is",
+    "s": "Repeat this success: Architecture is document-based (skills are markdown), so new skills integrate cleanly",
+    "c": "high",
+    "ts": "2026-04-15T05:48:13.054745Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "success",
+    "p": "Startup flow easy to extend",
+    "s": "added one line for `memory-loader` injection",
+    "c": "high",
+    "ts": "2026-04-15T05:48:13.054745Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "success",
+    "p": "Terminal phases",
+    "s": "Repeat this success: Terminal phases (`BLOCKED/COMPLETE/HANDOFF`) provide natural session-end triggers",
+    "c": "high",
+    "ts": "2026-04-15T05:48:13.054745Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "success",
+    "p": "Git infrastruct",
+    "s": "Repeat this success: Git infrastructure can track global memory across machines",
+    "c": "high",
+    "ts": "2026-04-15T05:48:13.054745Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "failure",
+    "p": "Initial attempt",
+    "s": "Avoid this failure: Initial attempt to add \"dynamic skill invocation\" \u2014 too complex for markdown-only framework",
+    "c": "medium",
+    "ts": "2026-04-15T05:48:13.054745Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "failure",
+    "p": "Assuming existi",
+    "s": "Avoid this failure: Assuming existing session logs present \u2014 directory empty, had to create sample log",
+    "c": "medium",
+    "ts": "2026-04-15T05:48:13.054745Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "success",
+    "p": "Architecture is",
+    "s": "Repeat this success: Architecture is document-based (skills are markdown), so new skills integrate cleanly",
+    "c": "high",
+    "ts": "2026-04-15T05:50:10.691796Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "success",
+    "p": "Startup flow easy to extend",
+    "s": "added one line for `memory-loader` injection",
+    "c": "high",
+    "ts": "2026-04-15T05:50:10.692796Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "success",
+    "p": "Terminal phases",
+    "s": "Repeat this success: Terminal phases (`BLOCKED/COMPLETE/HANDOFF`) provide natural session-end triggers",
+    "c": "high",
+    "ts": "2026-04-15T05:50:10.692796Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "success",
+    "p": "Git infrastruct",
+    "s": "Repeat this success: Git infrastructure can track global memory across machines",
+    "c": "high",
+    "ts": "2026-04-15T05:50:10.692796Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "failure",
+    "p": "Initial attempt",
+    "s": "Avoid this failure: Initial attempt to add \"dynamic skill invocation\" \u2014 too complex for markdown-only framework",
+    "c": "medium",
+    "ts": "2026-04-15T05:50:10.692796Z",
+    "sid": "session_20260415_000000"
+  },
+  {
+    "t": "failure",
+    "p": "Assuming existi",
+    "s": "Avoid this failure: Assuming existing session logs present \u2014 directory empty, had to create sample log",
+    "c": "medium",
+    "ts": "2026-04-15T05:50:10.692796Z",
+    "sid": "session_20260415_000000"
+  }
+]
