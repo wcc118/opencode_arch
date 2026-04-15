@@ -22,6 +22,9 @@ git log --oneline -1
 ```
 Confirm HEAD SHA matches what `agent.md` documents. If they differ: reconcile agent.md before doing anything else.
 
+# Memory injection (learnings/opencode_arch)
+- `memory/summary.json`: invoke `memory-loader`, inject heuristics
+
 ### 2. Check for BLOCKED
 Does agent.md show Phase: `BLOCKED`?
 - YES → Read the resolution condition. Has it been met? NO → report to human and stop. YES → clear block, continue.
@@ -98,6 +101,8 @@ Next action: [one sentence]
 Release all context from the completed subtask. Re-read agent.md only before continuing.
 
 After 3 subtasks: stop, present summary to human, wait for approval.
+
+- On BLOCKED/COMPLETE/HANDOFF: invoke `learning-aggregator`, append to `memory/bank.json`
 
 ---
 

@@ -12,7 +12,7 @@ You diagnose. You do not fix.
 
 ## Steps
 1. Classify: Syntax / Import / Runtime / Logic / Environment / Git / Test
-2. Search `sessions/` for matching prior errors: `grep -r "keyword" sessions/`
+2. Search `sessions/` and `memory/bank.json` for matching patterns: `grep -r "keyword" sessions/ memory/bank.json`
 3. Read traceback innermost-frame first — only open files on the in-scope list
 4. Form a hypothesis with evidence
 
