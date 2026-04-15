@@ -1,0 +1,66 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "spark/Qwen/Qwen3-Coder-Next-FP8",
+  "small_model": "ollama/qwen2.5-coder:7b",
+  "provider": {
+    "anthropic": {
+      "options": {
+        "apiKey": "hidden",
+        "baseURL": "https://api.anthropic.com/v1"
+      },
+      "models": {
+        "claude-sonnet-4-20250514": { "name": "Claude Sonnet 4" },
+        "claude-opus-4-20250514": { "name": "Claude Opus 4" },
+        "claude-haiku-4-5-20251001": { "name": "Claude Haiku 4.5" }
+      }
+    },
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:1234/v1"
+      },
+      "models": {
+        "qwen/qwen3.5-9b": { "name": "Qwen 3.5 9B (local)" },
+        "deepseek-r1-0528-qwen3-8b": { "name": "DeepSeek R1 Qwen 8B" },
+        "gemma-3-27b-it": { "name": "Gemma 3 27B" },
+        "qwen2.5-coder-7b-instruct": { "name": "Qwen Coder 7B" }
+      }
+    },
+    "spark": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "DGX Spark (local)",
+      "options": {
+        "baseURL": "http://10.0.0.98:8000/v1",
+        "apiKey": "dummy"
+      },
+      "models": {
+        "Qwen/Qwen3-Coder-Next-FP8": {
+          "name": "Qwen3-Coder-Next FP8 (Spark)",
+          "contextLength": 65000,
+          "maxTokens": 8000
+        }
+      }
+    },
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (Spark)",
+      "options": {
+        "baseURL": "http://10.0.0.98:11434/v1",
+        "apiKey": "ollama"
+      },
+      "models": {
+        "qwen2.5-coder:7b": {
+          "name": "Qwen2.5 Coder 7B (Spark)",
+          "contextLength": 32000,
+          "maxTokens": 4000
+        },
+        "qwen3-vl:8b": {
+          "name": "Qwen3-VL 8B Vision (Spark)",
+          "contextLength": 32000,
+          "maxTokens": 4000
+        }
+      }
+    }
+  }
+}
