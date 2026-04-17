@@ -26,17 +26,17 @@ Four states only: `BUILDING` | `BLOCKED` | `HANDOFF` | `COMPLETE`
 git status
 git log --oneline -1
 ```
-Confirm HEAD SHA matches what `agent.md` documents. If they differ: reconcile agent.md before doing anything else.
+Confirm HEAD SHA matches what `session.md` documents. If they differ: reconcile session.md before doing anything else.
 
 ### 3. Check for BLOCKED
-Does agent.md show Phase: `BLOCKED`?
+Does session.md show Phase: `BLOCKED`?
 - YES → Read the resolution condition. Has it been met? NO → report to human and stop. YES → clear block, continue.
 - NO → continue.
 
 ### 4. Detect Project State
-- `agent.md` exists → read it, extract phase/branch/next action. Report status in one sentence. Begin.
-- `agent.md` missing, no `.git/` → ask human: new project or adopt existing? Run `github-project-sync`.
-- `agent.md` missing, `.git/` exists → run `github-project-sync` ADOPT mode.
+- `session.md` exists → read it, extract phase/branch/next action. Report status in one sentence. Begin.
+- `session.md` missing, no `.git/` → ask human: new project or adopt existing? Run `github-project-sync`.
+- `session.md` missing, `.git/` exists → run `github-project-sync` ADOPT mode.
 
 ### 5. Human Touchpoint Check
 Has this session completed 3 or more subtasks? YES → stop, present summary to human, wait for approval before continuing.
@@ -53,7 +53,7 @@ In-scope files: [explicit list]
 ```
 2. If ambiguous: state the ambiguity, ask the human. Do not assume.
 3. Invoke `task-decomposer` for anything with more than one moving part.
-4. Write criteria to agent.md before routing to any agent.
+4. Write criteria to session.md before routing to any agent.
 
 ---
 
@@ -65,7 +65,7 @@ Every subtask has an explicit in-scope file list. Any agent that touches a file 
 
 ## Verified vs. Analyzed
 
-In agent.md current task block, maintain two fields:
+In session.md current task block, maintain two fields:
 ```
 Verified (ran): [list of criteria confirmed by execution]
 Analyzed (read): [list of criteria confirmed by code review only]
@@ -93,7 +93,7 @@ Every subagent call ends with: "Return 3 sentences: what you did, outcome, anyth
 
 ## After Every Subtask
 
-Update agent.md immediately:
+Update session.md immediately:
 ```
 Branch: [branch] | SHA: [git rev-parse HEAD] | Completed: [subtask name]
 Verified (ran): [criteria met by execution]
@@ -101,7 +101,7 @@ Analyzed (read): [criteria met by code review only]
 Remaining: [task names only]
 Next action: [one sentence]
 ```
-Release all context from the completed subtask. Re-read agent.md only before continuing.
+Release all context from the completed subtask. Re-read session.md only before continuing.
 
 After 3 subtasks: stop, present summary to human, wait for approval.
 
@@ -187,9 +187,9 @@ git revert HEAD               # pushed — creates new undo commit
 
 ## Context
 
-After every 2 subtasks: write session log to `sessions/`, drop all file contents from context, re-read agent.md only. Do not wait for OpenCode compaction — it cannot recover itself once looping.
+After every 2 subtasks: write session log to `sessions/`, drop all file contents from context, re-read session.md only. Do not wait for OpenCode compaction — it cannot recover itself once looping.
 
-If already in a compaction loop: write minimal state to agent.md Next Required Action, commit any work, tell human to start fresh session.
+If already in a compaction loop: write minimal state to session.md Next Required Action, commit any work, tell human to start fresh session.
 
 ---
 
@@ -202,4 +202,4 @@ If already in a compaction loop: write minimal state to agent.md Next Required A
 - No `git init` or `gh repo create` if `.git/` exists
 - No merge to `main` without human approval
 - No proceeding past 3 consecutive failures
-- No implementing — if you find a bug while reading, write it to agent.md and route to `@build`
+- No implementing — if you find a bug while reading, write it to session.md and route to `@build`

@@ -1,4 +1,4 @@
-# Agent State — opencode_arch
+# Session State — opencode_arch
 > Last: 2026-04-17T05:10:00Z | Session: session_20260415_000000
 
 ## Status
@@ -6,7 +6,7 @@ Phase: ADOPTED | Branch: master | Last Good SHA: 900fff89d0a8f7798df5a47b45ad867
 
 ## Current Task
 Goal: System health review complete — awaiting first task from human
-In-scope files: agent.md, architecture.md
+In-scope files: session.md, architecture.md
 Verified (ran): aggregator idempotent re-run, reinforcement tracking, combined format parsing, token budget validation
 Analyzed (read): orchestrator step numbering, explore.md tool references, .gitignore self-exclusion
 
@@ -15,7 +15,7 @@ Analyzed (read): orchestrator step numbering, explore.md tool references, .gitig
 - [x] Bugs 1-10, 12 fixed and tested [runtime]
 - [x] Retention scoring system implemented [runtime]
 - [x] Token budget enforced (≤500 objective, ≤1000 threshold) [runtime]
-- [x] agent.md and architecture.md created [human]
+- [x] session.md and architecture.md created [human]
 - [x] Pre-commit hook installed [human]
 
 ## Hook Status

@@ -15,7 +15,7 @@ Continuous learning retention system for OpenCode AI agent framework. Extracts h
 ```
 opencode_arch/
 ├── AGENTS.md                    # Agent behavioral contract (all agents)
-├── agent.md                     # Session state tracking manifest
+├── session.md                   # Session state tracking manifest
 ├── architecture.md              # This file
 ├── opencode.json                # OpenCode config (models, providers)
 ├── package.json                 # Node.js dependencies
