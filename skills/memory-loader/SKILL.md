@@ -8,7 +8,7 @@ description: Reads summary.json, injects heuristics into context at session star
 ## Run at Startup
 1. Read `memory/summary.json` from `C:/Users/wcc11/.config/opencode/memory/summary.json`
 2. Extract `heuristics` array
-3. Inject as **system prompt preface** (≤300 tokens) in this compact format:
+3. Inject as **system prompt preface** (≤500 tokens objective, ≤1000 tokens hard threshold) in this compact format:
 
 ```
 ## Memory Heuristics (past sessions)
@@ -22,4 +22,5 @@ Compact keys: t=type, p=pattern, s=suggestion, c=confidence, ts=timestamp, sid=s
 
 ## Keep Injected
 - heuristics only — no bank.json content
-- Trim lowest-confidence entries to stay ≤300 tokens
+- Entries are pre-scored by retention score (confidence + repetition + recency)
+- Trim lowest-scored entries to stay ≤500 tokens; hard limit 1000 tokens

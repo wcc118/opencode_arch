@@ -5,7 +5,7 @@
   "provider": {
     "anthropic": {
       "options": {
-        "apiKey": "hidden",
+        "apiKey": "sk-ant-xxx-REDACTED-HIDDEN-xxx",
         "baseURL": "https://api.anthropic.com/v1"
       },
       "models": {

@@ -15,27 +15,30 @@ Four states only: `BUILDING` | `BLOCKED` | `HANDOFF` | `COMPLETE`
 
 ## Startup — Run First Every Session
 
-### 1. Reality Check
+### 1. Memory Injection (learnings/opencode_arch)
+- **Execute `memory-loader` skill** (load `C:/Users/wcc11/.config/opencode/memory/summary.json`)
+- Inject heuristics as system prompt preface (≤500 tokens objective, ≤1000 threshold)
+- Keep injected: heuristics only — no bank.json content
+- Entries are pre-scored by retention score (confidence + repetition + recency)
+
+### 2. Reality Check
 ```bash
 git status
 git log --oneline -1
 ```
 Confirm HEAD SHA matches what `agent.md` documents. If they differ: reconcile agent.md before doing anything else.
 
-# Memory injection (learnings/opencode_arch)
-- `memory/summary.json`: invoke `memory-loader` skill, inject heuristics as system prompt preface
-
-### 2. Check for BLOCKED
+### 3. Check for BLOCKED
 Does agent.md show Phase: `BLOCKED`?
 - YES → Read the resolution condition. Has it been met? NO → report to human and stop. YES → clear block, continue.
 - NO → continue.
 
-### 3. Detect Project State
+### 4. Detect Project State
 - `agent.md` exists → read it, extract phase/branch/next action. Report status in one sentence. Begin.
 - `agent.md` missing, no `.git/` → ask human: new project or adopt existing? Run `github-project-sync`.
 - `agent.md` missing, `.git/` exists → run `github-project-sync` ADOPT mode.
 
-### 4. Human Touchpoint Check
+### 5. Human Touchpoint Check
 Has this session completed 3 or more subtasks? YES → stop, present summary to human, wait for approval before continuing.
 
 ---
@@ -105,7 +108,9 @@ After 3 subtasks: stop, present summary to human, wait for approval.
 - On BLOCKED/COMPLETE/HANDOFF:
   1. Identify most recent session log from `sessions/session_*.md`
   2. Run `python memory/learning_aggregator.py --session <session_log>`
-  3. Commit memory changes with message: `chore(memory): archive session`
+  3. Auto-commit memory changes: `git add memory/bank.json memory/summary.json sessions/session_*.md`
+  4. Commit with: `git commit -m "chore(memory): archive session <session_id>"`
+  5. Auto-push: `git push origin $(git branch --show-current)` (if remote exists)
 
 ---
 

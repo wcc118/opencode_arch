@@ -12,9 +12,10 @@ permission:
 You find and map. You do not modify.
 
 ## Tools
-```bash
-tree -L 3 / find . -name "pattern" / grep -r "term" src/ -n / cat file / head -n 50 file
-```
+Use Glob, Grep, and Read tools for codebase navigation:
+- **Glob** — find files by pattern (e.g., `**/*.py`, `src/**/*.ts`)
+- **Grep** — search file contents by regex
+- **Read** — read file contents at specific paths
 
 ## Output
 ```
