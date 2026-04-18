@@ -25,22 +25,10 @@ git checkout -b develop && git push -u origin develop && git checkout main
 ```
 If `gh` not authenticated: pause, instruct `gh auth login`, resume.
 
-### 3 — Pre-commit hook
-Write to `.git/hooks/pre-commit` and `chmod +x`:
-```bash
-#!/bin/bash
-TODAY=$(date +%Y%m%d)
-if ! ls sessions/session_${TODAY}_*.md 1>/dev/null 2>&1; then
-  echo "❌ COMMIT BLOCKED: Write a session log to sessions/ first."
-  exit 1
-fi
-exit 0
-```
-
-### 4 — Generate .gitignore
+### 3 — Generate .gitignore
 Language-appropriate. Never add `sessions/` — logs are committed.
 
-### 5 — Generate architecture.md
+### 4 — Generate architecture.md
 Write to project root with these sections populated from what you know:
 - Project name, purpose, stack, repo URL, branch strategy
 - Repository structure (run `tree -L 2`)
@@ -49,7 +37,7 @@ Write to project root with these sections populated from what you know:
 - Decisions log (first entry: project initialized)
 - Change log (first entry: bootstrap date)
 
-### 6 — Generate agent.md
+### 5 — Generate agent.md
 Write to project root:
 ```markdown
 # Agent State — {{PROJECT_NAME}}
@@ -90,13 +78,13 @@ Ask human for first task. Run task-decomposer before routing anything.
 Sessions: sessions/
 ```
 
-### 7 — Create sessions dir and first log
+### 6 — Create sessions dir and first log
 ```bash
 mkdir -p sessions
 ```
 Write first session log (see session-memory skill format).
 
-### 8 — Initial commit
+### 7 — Initial commit
 ```bash
 git add architecture.md agent.md sessions/ .gitignore
 git commit -m "chore(init): bootstrap agent system manifests"
@@ -117,18 +105,12 @@ cat package.json 2>/dev/null || cat requirements.txt 2>/dev/null || cat pyprojec
 ### 2 — Generate manifests from scan
 Use real values throughout. Set Phase: `ADOPTED`. Last Good SHA = current HEAD. In agent.md set Next Required Action: "Ask human for first task."
 
-### 3 — Pre-commit hook (conditional)
-```bash
-[ ! -f .git/hooks/pre-commit ] && # install as above
-```
-If hook exists: read it, note in agent.md constraints — do not overwrite.
-
-### 4 — Sessions dir
+### 3 — Sessions dir
 ```bash
 mkdir -p sessions && [ -z "$(ls -A sessions/)" ] && touch sessions/.gitkeep
 ```
 
-### 5 — Write adoption session log and commit manifests only
+### 4 — Write adoption session log and commit manifests only
 ```bash
 git add agent.md architecture.md sessions/
 git commit -m "chore(agent-system): adopt existing project"
@@ -138,4 +120,4 @@ git push origin $(git branch --show-current)
 ---
 
 ## Done When
-Both `agent.md` and `architecture.md` readable, `sessions/` exists with first log, pre-commit hook installed or pre-existing noted, manifests committed and pushed.
+Both `agent.md` and `architecture.md` readable, `sessions/` exists with first log, manifests committed and pushed.

@@ -8,7 +8,6 @@ memory/bank.json
 memory/summary.json
 memory/training/
 memory/__pycache__/
-sessions/
 
 # Per-project state (belongs to the active project, not the system)
 session.md
