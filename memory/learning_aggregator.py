@@ -9,12 +9,15 @@ Features:
   - Confidence auto-promotion on repeated reinforcement
   - Time-based decay (30/60/90 day tiers)
   - Token budget enforcement (objective ≤500, threshold ≤1000)
+  - Batch session discovery and aggregation via --scan
 
 Usage:
-    python learning_aggregator.py --session LOG_PATH
+    python learning_aggregator.py --session LOG_PATH --bank ... --summary ...
+    python learning_aggregator.py --scan DIR [--scan DIR2] --bank ... --summary ...
 """
 
 import argparse
+import glob as globmod
 import json
 import re
 import os
@@ -56,12 +59,23 @@ def save_json(path: Path, data):
 # Session log parsing
 # ---------------------------------------------------------------------------
 
+def _strip_header_lines(text: str) -> str:
+    """Remove any lines starting with '#' from output text."""
+    return '\n'.join(
+        line for line in text.split('\n')
+        if not line.strip().startswith('#')
+    ).strip()
+
+
 def extract_session_data(session_path: Path) -> dict:
     """Extract key data from a session log.
 
-    Handles two formats:
-      - Separate sections: '## What Worked' and '## What Failed'
-      - Combined section:  '## What Worked / What Failed'
+    Handles three formats:
+      - Format 1/2: Separate '## What Worked' and '## What Failed' sections
+      - Format 3:   Combined '## What Worked / What Failed' with ### sub-headers
+        parsed via a state machine (not keyword matching)
+
+    All markdown headers (lines starting with #) are stripped from output.
     """
     if not session_path.exists():
         raise FileNotFoundError(f"Session log not found: {session_path}")
@@ -71,7 +85,7 @@ def extract_session_data(session_path: Path) -> dict:
     worked = ""
     failed = ""
 
-    # Try separate sections first
+    # Try separate sections first (Format 1 and 2)
     worked_match = re.search(
         r'## What Worked\s*\n(.*?)(?=\n##|$)', content, re.DOTALL
     )
@@ -84,33 +98,51 @@ def extract_session_data(session_path: Path) -> dict:
         worked = worked_match.group(1).strip()
         failed = failed_match.group(1).strip()
     else:
-        # Try combined section: '## What Worked / What Failed'
+        # Try combined section: '## What Worked / What Failed' (Format 3)
         combined_match = re.search(
-            r'## What Worked\s*/\s*What Failed\s*\n(.*?)(?=\n##|$)',
+            r'## What Worked\s*/\s*What Failed\s*\n(.*?)(?=\n## |\Z)',
             content, re.DOTALL
         )
         if combined_match:
-            lines = combined_match.group(1).strip().split('\n')
+            lines = combined_match.group(1).split('\n')
             worked_lines = []
             failed_lines = []
-            failure_keywords = (
-                'fail', 'broke', 'wrong', 'avoid', 'didn\'t',
-                'error', 'miss', 'bug', 'crash', 'issue'
-            )
+            state = "unknown"  # state machine: unknown | worked | failed
+
             for line in lines:
-                stripped = line.strip().lower()
-                if any(kw in stripped for kw in failure_keywords):
-                    failed_lines.append(line)
-                elif stripped:
-                    worked_lines.append(line)
-            worked = '\n'.join(worked_lines)
-            failed = '\n'.join(failed_lines)
+                stripped = line.strip()
+                # Detect sub-header state transitions
+                if re.match(r'^###\s+What Worked', stripped, re.IGNORECASE):
+                    state = "worked"
+                    continue  # header is a transition, not content
+                if re.match(r'^###\s+What Failed', stripped, re.IGNORECASE):
+                    state = "failed"
+                    continue  # header is a transition, not content
+                # Skip any other markdown headers
+                if stripped.startswith('#'):
+                    continue
+                # Non-empty content lines go to current state bucket
+                if stripped:
+                    if state == "worked":
+                        worked_lines.append(line)
+                    elif state == "failed":
+                        failed_lines.append(line)
+                    else:
+                        # No sub-headers seen yet — safe default: worked
+                        worked_lines.append(line)
+
+            worked = '\n'.join(worked_lines).strip()
+            failed = '\n'.join(failed_lines).strip()
         else:
             # Fallback: use whatever separate matches we found
             if worked_match:
                 worked = worked_match.group(1).strip()
             if failed_match:
                 failed = failed_match.group(1).strip()
+
+    # Final filter: strip any remaining markdown header lines from output
+    worked = _strip_header_lines(worked)
+    failed = _strip_header_lines(failed)
 
     session_id = session_path.stem
 
@@ -125,13 +157,62 @@ def extract_session_data(session_path: Path) -> dict:
 # Heuristic generation
 # ---------------------------------------------------------------------------
 
+def normalize_pattern(text: str) -> str:
+    """Normalize a pattern string for fuzzy cross-session matching.
+
+    - Lowercases
+    - Strips leading/trailing whitespace
+    - Removes backticks and parentheticals (...)
+    - Removes markdown bold (**) and italic (_) formatting
+    - Normalizes dashes (em-dash, en-dash) to spaces
+    - Expands common contractions
+    - Strips leading/trailing punctuation
+    - Collapses multiple spaces to single
+    - Truncates to 120 chars
+    """
+    text = text.strip().lower()
+    # Remove backticks
+    text = text.replace('`', '')
+    # Remove markdown bold/italic: **bold** -> bold, _italic_ -> italic
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'(?<!\w)_(.+?)_(?!\w)', r'\1', text)
+    # Remove parentheticals
+    text = re.sub(r'\([^)]*\)', '', text)
+    # Normalize em-dash and en-dash to space
+    text = text.replace('\u2014', ' ')   # em-dash —
+    text = text.replace('\u2013', ' ')   # en-dash –
+    # Expand common contractions
+    text = text.replace("won't", "will not")
+    text = text.replace("can't", "cannot")
+    text = text.replace("didn't", "did not")
+    text = text.replace("doesn't", "does not")
+    text = text.replace("isn't", "is not")
+    text = text.replace("aren't", "are not")
+    text = text.replace("wasn't", "was not")
+    text = text.replace("weren't", "were not")
+    text = text.replace("don't", "do not")
+    text = text.replace("couldn't", "could not")
+    text = text.replace("shouldn't", "should not")
+    text = text.replace("wouldn't", "would not")
+    # Remove surrounding quotes
+    text = re.sub(r'["\u201c\u201d]', '', text)
+    # Collapse whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    # Strip leading/trailing punctuation (periods, commas, semicolons)
+    text = text.strip('.,;:')
+    text = text.strip()
+    return text[:120]
+
+
 def generate_heuristic(pattern: str, suggestion: str, heuristic_type: str,
-                       confidence: str = "medium", session_id: str = "") -> dict:
+                       confidence: str = "medium", session_id: str = "",
+                       normalized_pattern: str = "") -> dict:
     """Generate a heuristic object. Compact keys for token efficiency."""
     now = datetime.now(timezone.utc).isoformat()
     return {
         "t": heuristic_type,
         "p": pattern,
+        "np": normalized_pattern or normalize_pattern(pattern),
         "s": suggestion,
         "c": confidence,
         "ts": now,
@@ -151,6 +232,9 @@ def extract_heuristics_from_session(data: dict) -> list:
     # Parse "What Worked" lines (each line = heuristic)
     for line in worked.split('\n'):
         line = line.strip()
+        # Skip markdown headers and horizontal rules
+        if line.startswith('#') or re.match(r'^-{2,}$', line) or re.match(r'^\*{2,}$', line):
+            continue
         # Remove leading bullet points for pattern
         if line.startswith(('-', '*', '\u2022',
                            '1.', '2.', '3.', '4.', '5.',
@@ -159,50 +243,46 @@ def extract_heuristics_from_session(data: dict) -> list:
             # Handle numbered lists like "1." — strip trailing dot+space
             if line and line[0] == '.':
                 line = line[1:].strip()
-        if not line:
+        if not line or len(line) < 5:
             continue
-        # Try to extract pattern and suggestion
-        if ':' in line:
-            parts = line.split(':', 1)
-            pattern = parts[0].strip()
-            suggestion = parts[1].strip() if len(parts) > 1 else f"Continue doing: {pattern}"
-        else:
-            pattern = line[:15] if len(line) > 15 else line
-            suggestion = f"Repeat this success: {line}"
+        # Full line as pattern (up to 120 chars), no colon splitting
+        pattern = line[:120]
+        suggestion = f"Do: {line}"
 
         heuristics.append(generate_heuristic(
             pattern=pattern,
             suggestion=suggestion,
             heuristic_type="success",
             confidence="high",
-            session_id=session_id
+            session_id=session_id,
+            normalized_pattern=normalize_pattern(line)
         ))
 
     # Parse "What Failed" lines (each line = anti-pattern)
     for line in failed.split('\n'):
         line = line.strip()
+        # Skip markdown headers and horizontal rules
+        if line.startswith('#') or re.match(r'^-{2,}$', line) or re.match(r'^\*{2,}$', line):
+            continue
         if line.startswith(('-', '*', '\u2022',
                            '1.', '2.', '3.', '4.', '5.',
                            '6.', '7.', '8.', '9.')):
             line = line[1:].strip()
             if line and line[0] == '.':
                 line = line[1:].strip()
-        if not line:
+        if not line or len(line) < 5:
             continue
-        if ':' in line:
-            parts = line.split(':', 1)
-            pattern = parts[0].strip()
-            suggestion = parts[1].strip() if len(parts) > 1 else f"Avoid: {pattern}"
-        else:
-            pattern = line[:15] if len(line) > 15 else line
-            suggestion = f"Avoid this failure: {line}"
+        # Full line as pattern (up to 120 chars), no colon splitting
+        pattern = line[:120]
+        suggestion = f"Avoid: {line}"
 
         heuristics.append(generate_heuristic(
             pattern=pattern,
             suggestion=suggestion,
             heuristic_type="failure",
             confidence="medium",
-            session_id=session_id
+            session_id=session_id,
+            normalized_pattern=normalize_pattern(line)
         ))
 
     return heuristics
@@ -213,14 +293,15 @@ def extract_heuristics_from_session(data: dict) -> list:
 # ---------------------------------------------------------------------------
 
 def deduplicate_bank(bank: list) -> list:
-    """Remove legacy duplicates from bank. Keeps earliest entry per (p, t, sid).
+    """Remove legacy duplicates from bank. Keeps earliest entry per (np, t, sid).
 
     Idempotent — safe to run on every invocation.
     """
     seen = {}
     cleaned = []
     for h in bank:
-        key = (h['p'], h['t'], h['sid'])
+        np = h.get('np', normalize_pattern(h['p']))
+        key = (np, h['t'], h['sid'])
         if key not in seen:
             seen[key] = True
             cleaned.append(h)
@@ -228,12 +309,14 @@ def deduplicate_bank(bank: list) -> list:
 
 
 def migrate_bank_schema(bank: list) -> list:
-    """Add 'rb' and 'lst' fields to legacy entries that lack them."""
+    """Add 'rb', 'lst', and 'np' fields to legacy entries that lack them."""
     for h in bank:
         if 'rb' not in h:
             h['rb'] = []
         if 'lst' not in h:
             h['lst'] = h.get('ts', datetime.now(timezone.utc).isoformat())
+        if 'np' not in h:
+            h['np'] = normalize_pattern(h.get('p', ''))
     return bank
 
 
@@ -247,10 +330,12 @@ def reinforce_or_append(bank: list, new_heuristics: list) -> tuple:
     now = datetime.now(timezone.utc).isoformat()
 
     for nh in new_heuristics:
-        # Look for existing entry with same (pattern, type) from ANY session
+        # Look for existing entry with same (normalized pattern, type) from ANY session
         match = None
+        nh_np = nh.get('np', normalize_pattern(nh['p']))
         for existing in bank:
-            if existing['p'] == nh['p'] and existing['t'] == nh['t']:
+            existing_np = existing.get('np', normalize_pattern(existing['p']))
+            if existing_np == nh_np and existing['t'] == nh['t']:
                 match = existing
                 break
 
@@ -330,10 +415,11 @@ def compress_heuristics(bank: list, now: datetime,
     4. Fill until token_objective reached
     5. Allow overflow to token_threshold only for entries with score >= 7
     """
-    # Deduplicate: keep entry with highest score per (p, t)
+    # Deduplicate: keep entry with highest score per (np, t)
     best = {}
     for h in bank:
-        key = (h['p'], h['t'])
+        np = h.get('np', normalize_pattern(h['p']))
+        key = (np, h['t'])
         score = score_heuristic(h, now)
         if key not in best or score > best[key][1]:
             best[key] = (h, score)
@@ -484,6 +570,36 @@ def commit_session_log(session_path: Path, bank_path: Path,
 
 
 # ---------------------------------------------------------------------------
+# Batch session discovery
+# ---------------------------------------------------------------------------
+
+def discover_sessions(scan_dirs: list, processed: list) -> list:
+    """Find all session_*.md files under scan_dirs, excluding already-processed.
+
+    Globs for **/sessions/session_*.md under each directory, filters out paths
+    already in the processed list, and returns sorted Path objects.
+    """
+    processed_set = set(processed)
+    found = []
+
+    for scan_dir in scan_dirs:
+        base = Path(scan_dir)
+        if not base.is_dir():
+            print(f"Warning: scan directory does not exist: {scan_dir}")
+            continue
+        pattern = str(base / '**' / 'sessions' / 'session_*.md')
+        for match in globmod.glob(pattern, recursive=True):
+            p = Path(match)
+            posix = p.as_posix()
+            if posix not in processed_set:
+                found.append(p)
+
+    # Sort by filename (stem) for chronological ordering
+    found.sort(key=lambda p: p.name)
+    return found
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -491,8 +607,13 @@ def main():
     parser = argparse.ArgumentParser(
         description='OpenCode Learning Aggregator'
     )
-    parser.add_argument('--session', type=str, required=True,
-                        help='Path to session log')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--session', type=str,
+                       help='Path to a single session log')
+    group.add_argument('--scan', type=str, action='append',
+                       metavar='DIR',
+                       help='Scan directory for session_*.md files '
+                            '(repeatable)')
     parser.add_argument('--bank', type=str, default='memory/bank.json',
                         help='Path to bank.json')
     parser.add_argument('--summary', type=str, default='memory/summary.json',
@@ -503,11 +624,12 @@ def main():
                         help='Auto-push after commit (requires --auto-commit)')
     args = parser.parse_args()
 
-    session_path = Path(args.session)
+    # Require at least one mode
+    if not args.session and not args.scan:
+        parser.error('one of --session or --scan is required')
+
     bank_path = Path(args.bank)
     summary_path = Path(args.summary)
-    repo_dir = (Path(args.session).parent.parent
-                if session_path else Path.cwd())
     now = datetime.now(timezone.utc)
 
     # Load current state
@@ -524,20 +646,63 @@ def main():
         print(f"Cleaned {before_dedup - len(bank)} legacy duplicate(s) "
               f"from bank")
 
-    # Extract session data
-    print(f"Reading session: {session_path}")
-    session_data = extract_session_data(session_path)
+    # Load processed sessions tracking list
+    processed = summary.get('processed_sessions', [])
 
-    # Generate heuristics from session
-    new_heuristics = extract_heuristics_from_session(session_data)
-    print(f"Extracted {len(new_heuristics)} heuristic(s) from session")
+    # Build list of session paths to process
+    if args.session:
+        # Single-session mode (existing behavior)
+        sessions_to_process = [Path(args.session)]
+        skipped_count = 0
+    else:
+        # Batch scan mode
+        all_discovered = discover_sessions(args.scan, processed)
+        sessions_to_process = all_discovered
+        # Count how many were already processed (for reporting)
+        total_in_dirs = []
+        for scan_dir in args.scan:
+            base = Path(scan_dir)
+            if base.is_dir():
+                pattern = str(base / '**' / 'sessions' / 'session_*.md')
+                total_in_dirs.extend(globmod.glob(pattern, recursive=True))
+        skipped_count = len(total_in_dirs) - len(sessions_to_process)
 
-    # Reinforce existing or append new
-    bank, added, reinforced = reinforce_or_append(bank, new_heuristics)
-    print(f"Added {added} new, reinforced {reinforced} existing")
+    if not sessions_to_process:
+        print(f"No new sessions to process "
+              f"(skipped {skipped_count} already-processed)")
+        # Still save summary in case schema migrated
+        save_json(summary_path, summary)
+        return
 
-    # Save bank
+    # Process each session
+    total_added = 0
+    total_reinforced = 0
+    newly_processed_paths = []
+
+    for session_path in sessions_to_process:
+        print(f"Reading session: {session_path}")
+        try:
+            session_data = extract_session_data(session_path)
+        except FileNotFoundError as e:
+            print(f"  Skipping: {e}")
+            continue
+
+        new_heuristics = extract_heuristics_from_session(session_data)
+        print(f"  Extracted {len(new_heuristics)} heuristic(s)")
+
+        bank, added, reinforced = reinforce_or_append(bank, new_heuristics)
+        total_added += added
+        total_reinforced += reinforced
+        print(f"  Added {added} new, reinforced {reinforced} existing")
+
+        newly_processed_paths.append(session_path.as_posix())
+
+    # Save bank once after all sessions processed
     save_json(bank_path, bank)
+
+    # Update processed_sessions list
+    processed.extend(newly_processed_paths)
+    summary['processed_sessions'] = processed
 
     # Update summary with retention-scored compression
     compressed = compress_heuristics(bank, now,
@@ -558,8 +723,10 @@ def main():
 
     # Report
     token_count = estimate_tokens(summary)
-    print(f"\n[OK] Bank: {len(bank)} entries "
-          f"({added} new, {reinforced} reinforced)")
+    print(f"\nProcessed {len(newly_processed_paths)} new session(s), "
+          f"skipped {skipped_count} already-processed")
+    print(f"[OK] Bank: {len(bank)} entries "
+          f"({total_added} new, {total_reinforced} reinforced)")
     print(f"Summary: {len(compressed)} heuristics, "
           f"~{token_count} tokens, "
           f"{summary['total_sessions']} session(s) tracked")
@@ -572,6 +739,11 @@ def main():
 
     # Auto-commit if requested
     if args.auto_commit:
+        session_path = (Path(args.session) if args.session
+                        else sessions_to_process[0] if sessions_to_process
+                        else None)
+        repo_dir = (session_path.parent.parent
+                    if session_path else Path.cwd())
         commit_session_log(session_path, bank_path, summary_path,
                            repo_dir, args.auto_push)
 

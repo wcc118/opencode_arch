@@ -6,17 +6,33 @@ description: Extracts heuristics from session logs, appends to memory bank. Invo
 # Learning Aggregator
 
 ## Steps
-1. Read most recent session log from `sessions/session_*.md`
-2. Extract "What Worked" / "What Failed" sections (handles both separate and combined formats)
-3. For each line, generate heuristic JSON objects:
-   - Success: `{"t": "success", "p": "<pattern>", "s": "Repeat...", "c": "high", "ts": "...", "sid": "..."}`
-   - Failure: `{"t": "failure", "p": "<pattern>", "s": "Avoid...", "c": "medium", "ts": "...", "sid": "..."}`
-4. Reinforce existing bank entries or append new ones
+1. Read session log(s) — single file via `--session` or batch discovery via `--scan`
+2. Extract "What Worked" / "What Failed" sections using state machine parser:
+   - Format 1/2: Separate `## What Worked` and `## What Failed` sections
+   - Format 3: Combined `## What Worked / What Failed` with `### ` sub-headers
+   - All markdown headers filtered out (never become heuristics)
+3. For each content line, generate heuristic JSON objects:
+   - Success: `{"t": "success", "p": "<full line>", "np": "<normalized>", "s": "Do: <line>", "c": "high", ...}`
+   - Failure: `{"t": "failure", "p": "<full line>", "np": "<normalized>", "s": "Avoid: <line>", "c": "medium", ...}`
+4. Reinforce existing bank entries via normalized pattern matching (`np` field) or append new
 5. Compress bank into `memory/summary.json` using retention scoring within token budget
 
-## Retention Scoring
+## Heuristic Schema
+```json
+{
+  "t": "success|failure",
+  "p": "Full human-readable pattern (up to 120 chars)",
+  "np": "normalized lowercase pattern for cross-session matching",
+  "s": "Do: ... | Avoid: ...",
+  "c": "high|medium|low",
+  "ts": "ISO timestamp",
+  "sid": "session_id",
+  "rb": ["reinforcing_session_ids"],
+  "lst": "last-seen timestamp"
+}
+```
 
-Each heuristic receives a retention score at compression time:
+## Retention Scoring
 
 ```
 score = base_confidence + repetition_boost + recency_weight
@@ -32,9 +48,9 @@ Score range: 0 to 9.
 
 ## Reinforcement
 
-When a new session generates a heuristic matching an existing bank entry's `(pattern, type)`:
-- The existing entry's `rb` (reinforced_by) array gains the new session_id
-- The `lst` (last-seen timestamp) updates to now
+Matching uses **normalized patterns** (`np` field) — lowercased, parentheticals removed, contractions expanded, whitespace collapsed. When a new session generates a heuristic matching an existing `(np, type)`:
+- The existing entry's `rb` array gains the new session_id
+- The `lst` timestamp updates to now
 - No duplicate entry is created
 - **Auto-promotion**: 3+ reinforcements from different sessions promotes `medium` → `high`
 
@@ -42,20 +58,46 @@ When a new session generates a heuristic matching an existing bank entry's `(pat
 
 | Age | Behavior |
 |-----|----------|
-| 0-30 days | Full retention. All heuristics kept unless over budget. |
-| 31-60 days | Must have score ≥ 3 to survive compression. |
-| 61-90 days | Must have score ≥ 5 to survive. |
-| 90+ days | Evicted from summary.json. Remains in bank.json as archive. |
+| 0-30 days | Full retention |
+| 31-60 days | Must have score ≥ 3 |
+| 61-90 days | Must have score ≥ 5 |
+| 90+ days | Evicted from summary.json (kept in bank.json) |
 
 ## Token Budget
 
 - **Objective**: ≤500 tokens in summary.json
-- **Hard threshold**: ≤1000 tokens (overflow allowed only for entries scoring ≥ 7)
-- Enforced during compression via `estimate_tokens()`
+- **Hard threshold**: ≤1000 tokens (overflow only for score ≥ 7)
 
 ## Implementation
-Run: `python C:/Users/wcc11/.config/opencode/memory/learning_aggregator.py --session <session_log> --bank C:/Users/wcc11/.config/opencode/memory/bank.json --summary C:/Users/wcc11/.config/opencode/memory/summary.json`
 
-## Output (to agent.md or human)
-- Added X new, reinforced Y existing
+Single session:
+```bash
+python C:/Users/wcc11/.config/opencode/memory/learning_aggregator.py \
+  --session <session_log> \
+  --bank C:/Users/wcc11/.config/opencode/memory/bank.json \
+  --summary C:/Users/wcc11/.config/opencode/memory/summary.json
+```
+
+Batch scan (discovers all unprocessed sessions):
+```bash
+python C:/Users/wcc11/.config/opencode/memory/learning_aggregator.py \
+  --scan C:/Users/wcc11/.config/opencode \
+  --scan G:/Projects/CashFlow \
+  --bank C:/Users/wcc11/.config/opencode/memory/bank.json \
+  --summary C:/Users/wcc11/.config/opencode/memory/summary.json
+```
+
+Fine-tuning export:
+```bash
+python C:/Users/wcc11/.config/opencode/memory/export_training_data.py \
+  --bank C:/Users/wcc11/.config/opencode/memory/bank.json \
+  --sessions-dir C:/Users/wcc11/.config/opencode/sessions \
+  --output-dir C:/Users/wcc11/.config/opencode/memory/training \
+  --formats all
+```
+
+## Output
+- Processed N new session(s), skipped M already-processed
+- Bank: X entries (Y new, Z reinforced)
 - Summary: N heuristics, ~T tokens, S session(s) tracked
+- Training: N heuristic pairs, M session narratives, K corrective pairs, J DPO pairs
